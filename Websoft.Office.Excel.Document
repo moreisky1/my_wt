@@ -1,0 +1,193 @@
+if( LdsIsClient == true ) {
+	try {
+		function upp_first_char_low_other( str ) {
+			new_str = StrUpperCase( StrCharRangePos ( str, 0, 1 ) ) + StrLowerCase( StrCharRangePos ( str, 1, StrCharCount( str ) ) )
+			return new_str
+		}
+		function upp_first_char( str ) {
+			new_str = StrUpperCase( StrCharRangePos ( str, 0, 1 ) ) + StrCharRangePos ( str, 1, StrCharCount( str ) )
+			return new_str
+		}
+		var send_message_to = String( Param.send_message_to )
+		var event_id = OptInt( Param.event_id )
+		// var subdivision_id_1 = 7098973675361929525 // load_muc
+		// var subdivision_name_1 = "load_muc"
+		event_doc = tools.open_doc( event_id )
+		education_method_id = event_doc.TopElem.education_method_id
+		excel_url = Screen.AskFileOpen( '', "Выбери файл *.xls*" )
+		excel_object = new ActiveXObject( "Websoft.Office.Excel.Document" )
+		excel_object.Open( UrlToFilePath( excel_url ) )
+		excel_sheet = excel_object.GetWorksheet( 0 )
+		
+		alert_message = ''
+		num_rows = 0
+		cur_row = 2
+		
+		while( true ) {
+			if ( excel_sheet.Cells.GetCell( "A" + cur_row ).Value == undefined ) { break }
+			
+			excel_sheet.Cells.GetCell( "F" + cur_row ).Value = ''
+			
+			col_fullname = excel_sheet.Cells.GetCell( "A" + cur_row ).Value == undefined ? "" : Trim( UnifySpaces( excel_sheet.Cells.GetCell( "A" + cur_row ).Value ) )
+			col_email = excel_sheet.Cells.GetCell( "B" + cur_row ).Value == undefined ? "" : Trim( UnifySpaces( excel_sheet.Cells.GetCell( "B" + cur_row ).Value ) )
+			col_phone = excel_sheet.Cells.GetCell( "C" + cur_row ).Value == undefined ? "" : Trim( UnifySpaces( excel_sheet.Cells.GetCell( "C" + cur_row ).Value ) )
+			str = excel_sheet.Cells.GetCell( "D" + cur_row ).Value == undefined ? "" : Trim( UnifySpaces( excel_sheet.Cells.GetCell( "D" + cur_row ).Value ) )
+			col_position_name = upp_first_char( str )
+			col_org_inn = excel_sheet.Cells.GetCell( "E" + cur_row ).Value == undefined ? "" : Trim( UnifySpaces( excel_sheet.Cells.GetCell( "E" + cur_row ).Value ) )
+			
+			col_fullname_arr = col_fullname.split(" ")
+			col_fullname_arr_count = ArrayCount( col_fullname_arr )
+			
+			if( StrContains( col_fullname , '.', false ) ) {
+				alert_message += "Участник " + col_fullname + " не добален, так как неверно заполнено ФИО; "
+				if( send_message_to == 'excel' ) {
+					excel_sheet.Cells.GetCell( "F" + cur_row ).Value = "Участник " + col_fullname + " не добален, так как неверно заполнено ФИО; "
+				}
+				cur_row++
+				continue
+			}
+			if( col_fullname_arr_count < 2 || col_fullname_arr_count > 4 ) {
+				alert_message += "Участник " + col_fullname + " не добален, так как неверно заполнено ФИО; "
+				if( send_message_to == 'excel' ) {
+					excel_sheet.Cells.GetCell( "F" + cur_row ).Value = "Участник " + col_fullname + " не добален, так как неверно заполнено ФИО; "
+				}
+				cur_row++
+				continue
+			} else {
+				if ( col_fullname_arr_count == 2 ) {
+					col_lastname = upp_first_char_low_other( col_fullname_arr[0] )
+					col_firstname = upp_first_char_low_other( col_fullname_arr[1] )
+					col_middlename = ""
+				} else if ( col_fullname_arr_count == 3 ) {
+					col_lastname = upp_first_char_low_other( col_fullname_arr[0] )
+					col_firstname = upp_first_char_low_other( col_fullname_arr[1] )
+					col_middlename = upp_first_char_low_other( col_fullname_arr[2] )
+				} else if ( col_fullname_arr_count == 4 ) {
+					col_lastname = upp_first_char_low_other( col_fullname_arr[0] )
+					col_firstname = upp_first_char_low_other( col_fullname_arr[1] )
+					col_middlename = upp_first_char_low_other( col_fullname_arr[2] ) + " " + upp_first_char_low_other( col_fullname_arr[3] )
+				}
+			}
+			
+			if ( StrCharCount( col_firstname ) == 1 || StrCharCount( col_middlename ) == 1 ) {
+				alert_message += "Участник " + col_fullname + " не добален, так как неверно заполнено ФИО; "
+				if( send_message_to == 'excel' ) {
+					excel_sheet.Cells.GetCell( "F" + cur_row ).Value = "Участник " + col_fullname + " не добален, так как неверно заполнено ФИО; "
+				}
+				cur_row++
+				continue
+			}
+
+			found_org = ArrayOptFirstElem( XQuery( "for $elem in orgs where $elem/code = '" + col_org_inn + "' return $elem" ) )
+			if( found_org == undefined ) {
+				alert_message += "Участник " + col_fullname + " не добален, так как не найдена организация с ИНН - " + col_org_inn + "; "
+				if( send_message_to == 'excel' ) {
+					excel_sheet.Cells.GetCell( "F" + cur_row ).Value = "Участник " + col_fullname + " не добален, так как не найдена организация с ИНН - " + col_org_inn + "; "
+				}
+				cur_row++
+				continue
+			} else {
+				found_collaborator = ArrayOptFirstElem( XQuery( "sql:
+					SELECT 
+						collaborators.id AS col_id
+					FROM collaborators
+					LEFT JOIN orgs
+						ON collaborators.org_id = orgs.id
+					WHERE collaborators.fullname = '" + col_fullname + "'
+						AND collaborators.code LIKE '%load_muc%'
+						AND orgs.code = '" + col_org_inn + "'
+				") )
+
+				if( found_collaborator == undefined ) {
+					a1 = StrDate( Date() ).split(" ")
+					a2 = a1[0].split( "." )
+					a3 = a1[1].split( ":" )
+					my_str = "load_muc_" + a2[2] + a2[1] + a2[0] + "_" + a3[0] + a3[1] + a3[2] + "_" + tools.random_string( 5 )
+					
+					new_col_doc = tools.new_doc_by_name( 'collaborator', false )
+					new_col_doc.BindToDb( DefaultDb )
+					new_col_doc_te = new_col_doc.TopElem
+					new_col_doc_te.lastname = col_lastname
+					new_col_doc_te.firstname = col_firstname
+					new_col_doc_te.middlename = col_middlename
+					new_col_doc_te.code = my_str
+					new_col_doc_te.login = my_str
+					//new_col_doc_te.password = tools.random_string( 20 )
+					new_col_doc_te.custom_elems.ObtainChildByKey("uf_inn").value = col_org_inn
+					new_col_doc_te.custom_elems.ObtainChildByKey("load_muc").value = true
+					new_col_doc_te.custom_elems.ObtainChildByKey("guid_status").value = "Надо получить"
+					new_col_doc_te.custom_elems.ObtainChildByKey("comment").value = "|||" + StrDate(Date()) + " - Создан агентом для добавление в мероприятие «" + event_doc.TopElem.name + "» в качестве участника."
+					new_col_doc_te.access.web_banned = true
+					new_col_doc_te.org_id = found_org.id
+					new_col_doc_te.org_name = found_org.name
+					new_col_doc_te.last_import_date = Date()
+					new_col_doc_te.system_email = col_email
+					new_col_doc_te.mobile_phone = col_phone
+					new_col_doc_te.birth_date.Clear()
+
+					new_position_doc = tools.new_doc_by_name( 'position', false )
+					new_position_doc.BindToDb( DefaultDb )
+					new_position_doc_te = new_position_doc.TopElem
+					new_position_doc_te.name = col_position_name
+					new_position_doc_te.org_id = found_org.id
+					new_position_doc_te.position_appointment_type_id = 6820005324597779239 // Тип назначения Основная
+
+					new_col_doc.Save()
+					new_position_doc.Save()
+
+					new_position_doc_te.basic_collaborator_id = new_col_doc.DocID
+					//new_position_doc_te.parent_object_id = subdivision_id_1
+					new_col_doc_te.position_id = new_position_doc.DocID
+					//new_col_doc_te.position_parent_id = subdivision_id_1
+					//new_col_doc_te.position_parent_name = subdivision_name_1
+
+					new_col_doc.Save()
+					new_position_doc.Save()
+
+					tools.add_person_to_event( new_col_doc.DocID, event_id )
+					
+				} else {
+					found_events_arr = ArraySelectAll( XQuery( "sql:
+						SELECT
+							event_results.event_id
+						FROM event_results
+						LEFT JOIN events
+							ON events.id = event_results.event_id
+						WHERE event_results.person_id = " + found_collaborator.col_id + "
+							AND event_results.is_assist = 1
+							AND events.education_method_id = " + education_method_id + "
+					") )
+					if ( ArrayCount( found_events_arr ) == 0 ) {
+						tools.add_person_to_event( found_collaborator.col_id, event_id )
+						col_doc = tools.open_doc( found_collaborator.col_id )
+						col_doc.TopElem.system_email = col_email
+						col_doc.TopElem.mobile_phone = col_phone
+						col_doc.Save()
+					} else {
+						alert_message += "Участник " + col_fullname + " не добален, так как участвовал в мероприятиях: " + ArrayMerge( found_events_arr, "This.event_id", ", " )
+						if( send_message_to == 'excel' ) {
+							excel_sheet.Cells.GetCell( "F" + cur_row ).Value = "Участник " + col_fullname + " не добален, так как участвовал в мероприятиях: " + ArrayMerge( found_events_arr, "This.event_id", ", " )
+						}
+						cur_row++
+						continue						
+					}
+				}
+			}
+			
+			cur_row++
+		}
+		num_rows = cur_row - 1
+		
+		if( alert_message != '' ) {
+			if( send_message_to == 'alert' ) {
+				alert( alert_message )
+			}
+			if( send_message_to == 'notification' ) {
+				tools.create_notification( 'load_muc_err', tools.cur_user_id, alert_message )
+			}			
+		}
+		excel_object.Save()
+	} catch ( err ) { alert( 'Agent - , error - ' + err ) }
+} else {
+	alert( "Для корректной работы агент необходимо запускать на стороне клиента" )
+}
