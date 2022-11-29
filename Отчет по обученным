@@ -1,0 +1,222 @@
+function include(ts,p) {var mc;try {mc=TopElem.script;}catch(e){try{te=tools.open_doc(p.id).TopElem;if (p.to=='server_agent')mc=te.run_code;else throw 'unknown object in params: '+p.to;}catch(e){throw "TopElem or self_id not found!";}}mc+='';if(!IsArray(ts))ts=[ts];var c="";for(t in ts)c+='\n'+ld(t);c+='\n'+cmc(mc);try{tools.safe_execution(c);}catch(e){eval(c);}return false;}function ld(tc){curActiveWebTemplate=null;var es=tools_web.insert_custom_code(tc,null,false,true);es=StrRightRangePos(es,es.indexOf( '\<\%' )+2);es=StrLeftRange(es,es.indexOf('\%\>'));return es;}function cmc(c){var x='if (inc'+'luded)';var i=c.indexOf(x);if(i<0)throw '"'+x+'" not found in the main code!';var cc=StrRightRangePos(c,i);cc=StrReplaceOne(cc,x,'if (true)');return cc;}
+included = include('server_functions', {to: 'server_agent', id: 7140255621678765675});
+if (included) {
+/*
+var bIsLog = true // вести логирование выполнения агента
+var sLogMethod = "ext" // метод вывода в лог - ext, system, report, excel // report - teCurObject = tools.open_doc( curObjectID ).TopElem
+var sLogMethodExt = "ext_log" // префикс файла журнала (для sLogMethod = "ext")
+var slogMethodPath = "x-local://Logs/" //директория для сохранения файла на сервер (sLogMethod = "excel")
+var docReport
+var sLogStr = ''
+*/
+if ( LdsIsServer ) {
+	sLogMethod = "report"
+	curObjectID = 7140255621678765675
+	curObjectDoc = tools.open_doc( curObjectID )
+	teCurObject = curObjectDoc.TopElem
+	try{
+		open_log()
+		var bDebugMode = false
+		if ( !bDebugMode ) {
+			write_log_text( "bDebugMode = " + bDebugMode )
+			var date_start_report = Date()
+			var date_from = Param.date_from == '' ? '01.01.2010 00:00:00' : Param.date_from
+			var date_to = Param.date_to == '' ? ParseDate( Date() ) + ' 23:59:59' : Param.date_to
+			var folder = 'E:/Websoft/Reports/report_not_tren_muc/'
+			var f_name = 'report_not_tren_muc_' + ParseDate( Date() ) + '.xlsx'
+			var f_url = folder + f_name
+			var oExcelDoc = new ActiveXObject("Websoft.Office.Excel.Document")
+			var report_string = new Binary()
+			group_id = 6927607997391442359 // 7130892777379600862 - Доступ к отчетам по обученным ФЦК // 6927607997391442359 - DUE
+			cols_arr = XQuery( "for $elem in group_collaborators where $elem/group_id=" + group_id + " return $elem" )
+			for ( col in cols_arr ) {
+				tools.create_notification( "start_report", OptInt( col.collaborator_id ), "report_not_tren_muc", OptInt( Param.curUserID ) )
+			}
+			arr = ArrayDirect( XQuery( "sql:
+				SET DATEFORMAT dmy
+				DECLARE @date_from datetime = '" + date_from + "'
+				DECLARE @date_to datetime = '" + date_to + "'
+				;
+				WITH TempTable1 AS (
+					SELECT events.id AS e_id, lectors.lector_fullname AS lec_fio
+					FROM [WTDB].[dbo].events
+					LEFT JOIN [WTDB].[dbo].event e
+						ON events.id = e.id
+					CROSS APPLY e.data.nodes('event/lectors/lector') T(c)
+					LEFT JOIN [WTDB].[dbo].lectors
+						ON T.c.value('lector_id[1]','varchar(max)') = lectors.id
+					WHERE
+						events.finish_date BETWEEN @date_from AND @date_to
+				)
+				SELECT e_id, lec_fio_s = STUFF (
+						(
+							SELECT '|' + lec_fio
+							FROM TempTable1 tt2
+							WHERE tt2.e_id = tt1.e_id
+							FOR XML PATH ('')
+						)
+						, 1, 1, ''	
+					)
+				INTO #Table1
+				FROM TempTable1 tt1
+				GROUP BY e_id
+				;
+				WITH TempTable2 AS (
+					SELECT events.id AS e_id, T.c.value('person_fullname[1]','varchar(max)') AS pre_fio
+					FROM [WTDB].[dbo].events
+					LEFT JOIN [WTDB].[dbo].event e
+						ON events.id = e.id
+					CROSS APPLY e.data.nodes('event/even_preparations/even_preparation') T(c)
+					WHERE
+						events.finish_date BETWEEN @date_from AND @date_to
+				)
+				SELECT e_id, pre_fio_s = STUFF (
+						(
+							SELECT '|' + pre_fio
+							FROM TempTable2 tt2
+							WHERE tt2.e_id = tt1.e_id
+							FOR XML PATH ('')
+						)
+						, 1, 1, ''	
+					)
+				INTO #Table2
+				FROM TempTable2 tt1
+				GROUP BY e_id
+				;
+				SELECT top 1000000
+					CONCAT( '''', event_results.id ) AS PK,
+					event_results.is_assist,
+					event_results.not_participate,
+					events.finish_date AS f_date,
+					YEAR(events.finish_date) AS f_date_year,
+					MONTH(events.finish_date) AS f_date_month,
+					DAY(events.finish_date) AS f_date_day,
+					CONCAT( '''', events.id ) AS e_id,
+					events.name AS e_name,
+					collaborators.code AS col_code,
+					collaborators.fullname AS col_fullname,
+					places.name AS place_name,
+					[common.event_status_types].name AS status_name,
+					education_methods.name AS edu_meth_name,
+					CONCAT( '''', education_methods.id  ) AS edu_meth_id,
+					events.education_org_name AS edu_org_name,
+					#Table1.lec_fio_s AS lec_fio_s,
+					#Table2.pre_fio_s AS pre_fio_s,
+					event.data.value('(event/custom_elems/custom_elem[name=''nps''])[1]/value[1]', 'varchar(max)') AS nps,
+					CONCAT( '''', orgs.code ) AS o_inn,
+					orgs.name AS o_name,
+					org.data.value('(org/custom_elems/custom_elem[name=''format_part''])[1]/value[1]', 'varchar(max)') AS format_part,
+					CASE 
+						WHEN org.data.value('(org/custom_elems/custom_elem[name=''is_rck''])[1]/value[1]', 'varchar(max)') = 'true' THEN '+'
+						ELSE '-'
+					END AS is_rck,
+					CASE 
+						WHEN org.data.value('(org/custom_elems/custom_elem[name=''is_roiv''])[1]/value[1]', 'varchar(max)') = 'true' THEN '+'
+						ELSE '-'
+					END AS is_roiv,
+					( SELECT regions.name FROM regions WHERE regions.id = org.data.value('(org/custom_elems/custom_elem[name=''fact_region_id''])[1]/value[1]', 'varchar(max)') ) AS fact_reg_name,
+					regions.name AS reg_name,
+					collaborator.data.value('(collaborator/lastname)[1]', 'varchar(max)') AS col_lastname,
+					collaborator.data.value('(collaborator/firstname)[1]', 'varchar(max)') AS col_firstname,
+					collaborator.data.value('(collaborator/middlename)[1]', 'varchar(max)') AS col_middlename,
+					CONCAT( '''', orgs.code, '_', orgs.name ) AS o_inn_name,
+					CONCAT( collaborators.code, '_', collaborators.fullname ) AS col_code_fullname,
+					CASE 
+						WHEN event_results.is_assist = 'false' THEN 0
+						ELSE row_number() over(partition BY collaborators.code, '_', collaborators.fullname 
+						ORDER BY collaborators.fullname, orgs.name, event_results.not_participate,
+							events.finish_date)
+					END AS num,
+					CASE 
+						WHEN events.event_form = 'conference' THEN 'конференция'
+						WHEN events.event_form = 'examination' THEN 'сертификация'
+						WHEN events.event_form = 'game' THEN 'деловая игра'
+						WHEN events.event_form = 'meeting' THEN 'стартовое совещание'
+						WHEN events.event_form = 'meth_day' THEN 'методический день'
+						WHEN events.event_form = 'pered_prog' THEN 'передача программ'
+						WHEN events.event_form = 'praktikum' THEN 'тренинг-площадка'
+						WHEN events.event_form = 'scan' THEN 'сканирование'
+						WHEN events.event_form = 'seminar' THEN 'семинар'
+						WHEN events.event_form = 'stagirovka' THEN 'стажировка'
+						WHEN events.event_form = 'supervis_tren' THEN 'супервизия тренеров'
+						WHEN events.event_form = 'training' THEN 'тренинг'
+						WHEN events.event_form = 'webinar' THEN 'вебинар'
+						ELSE ''
+					END AS event_form
+					, positions.name AS pos_name
+				FROM [WTDB].[dbo].event_results
+				LEFT JOIN [WTDB].[dbo].event_result
+					ON event_results.id = event_result.id
+				LEFT JOIN [WTDB].[dbo].collaborators
+					ON event_results.person_id = collaborators.id
+				LEFT JOIN [WTDB].[dbo].collaborator
+					ON event_results.person_id = collaborator.id		
+				LEFT JOIN [WTDB].[dbo].events
+					ON event_results.event_id = events.id
+				LEFT JOIN [WTDB].[dbo].event
+					ON event_results.event_id = event.id
+				LEFT JOIN [WTDB].[dbo].places
+					ON events.place_id = places.id
+				LEFT JOIN [WTDB].[dbo].[common.event_status_types]
+					ON events.status_id = [common.event_status_types].id
+				LEFT JOIN [WTDB].[dbo].education_methods
+					ON events.education_method_id = education_methods.id
+				LEFT JOIN #Table1
+					ON events.id = #Table1.e_id
+				LEFT JOIN #Table2
+					ON events.id = #Table2.e_id
+				LEFT JOIN [WTDB].[dbo].orgs
+					ON collaborators.org_id = orgs.id
+				LEFT JOIN [WTDB].[dbo].org
+					ON collaborators.org_id = org.id
+				LEFT JOIN [WTDB].[dbo].regions
+					ON regions.id = orgs.region_id
+					--ON org.data.value('(org/custom_elems/custom_elem[name=''region_code''])[1]/value[1]', 'varchar(max)') = regions.code
+				LEFT JOIN [WTDB].[dbo].positions
+					ON positions.id = collaborators.position_id
+				WHERE
+					collaborators.code NOT LIKE '%tren_muc%'
+					AND events.code LIKE '%week%'
+					AND events.finish_date BETWEEN @date_from AND @date_to
+				ORDER BY col_fullname, o_name, not_participate, f_date
+				DROP TABLE #Table1
+				DROP TABLE #Table2
+			" ) )
+
+			report_string.AppendStr( '<html><table>' )
+
+			report_string.AppendStr( '<tr>' )
+
+			report_string.AppendStr( '<td>ИНН</td><td>Организация</td><td>Тип поддержки</td><td>РЦК?</td><td>Код участника</td><td>ФИО участника</td><td>Присутствие</td><td>id мероприятия</td><td>Мероприятие</td><td>Обучающая организация</td><td>id Учебной программы</td><td>Учебная программа</td><td>Дата</td><td>Место проведения</td><td>Тренер</td><td>NPS</td><td>Статус</td><td>Ответственный</td><td>День</td><td>Месяц</td><td>Год</td><td>Регион</td><td>Факт.Регион</td><td>Фамилия</td><td>Имя</td><td>Отчество</td><td>Форма проведения мероприятия</td><td>num</td><td>Должность</td><td>РОИВ?</td>' )
+
+			report_string.AppendStr( '</tr>' )
+
+			var count_arr = ArrayCount( arr )
+
+			numb = 1
+			for ( elem in arr ) {
+				report_string.AppendStr( '<tr>' )
+				report_string.AppendStr( '<td>'+elem.o_inn+'</td><td>'+elem.o_name+'</td><td>'+elem.format_part+'</td><td>'+elem.is_rck+'</td><td>'+elem.col_code+'</td><td>'+elem.col_fullname+'</td><td>'+elem.is_assist+'</td><td>'+elem.e_id+'</td><td>'+elem.e_name+'</td><td>'+elem.edu_org_name+'</td><td>'+elem.edu_meth_id+'</td><td>'+elem.edu_meth_name+'</td><td>'+Date( StrDate( elem.f_date, false ) )+'</td><td>'+elem.place_name+'</td><td>'+elem.lec_fio_s+'</td><td>'+elem.nps+'</td><td>'+elem.status_name+'</td><td>'+elem.pre_fio_s+'</td><td>'+elem.f_date_day+'</td><td>'+elem.f_date_month+'</td><td>'+elem.f_date_year+'</td><td>'+elem.reg_name+'</td><td>'+elem.fact_reg_name+'</td><td>'+elem.col_lastname+'</td><td>'+elem.col_firstname+'</td><td>'+elem.col_middlename+'</td><td>'+elem.event_form+'</td><td>'+elem.num+'</td><td>'+elem.pos_name+'</td><td>'+elem.is_roiv+'</td>' )
+				report_string.AppendStr('</tr>')
+			}
+
+			report_string.AppendStr( '</table></html>' )
+			oExcelDoc.LoadHtmlString( report_string.GetStr(), "" )
+			oExcelDoc.SaveAs( f_url )
+			for ( col in cols_arr ) {
+				tools.create_notification( "finish_report", OptInt( col.collaborator_id ), "report_not_tren_muc", OptInt( Param.curUserID ) )
+			}
+			delta = DateToRawSeconds( Date() ) - DateToRawSeconds( date_start_report )
+			duration = StrReal( delta / 60.0, 0 ) + " мин"
+			teCurObject.custom_elems.ObtainChildByKey( "work_duration" ).value = duration
+			curObjectDoc.Save()
+		} else {
+			write_log_text( "bDebugMode = " + bDebugMode )
+		}
+		close_log()
+	} catch( e ) {
+		write_log_text( "error = " + e )
+		close_log()
+	}
+}
+}
