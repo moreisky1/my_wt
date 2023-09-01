@@ -1,0 +1,82 @@
+<html><body>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+            <td>
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr valign="top"><td width="100%" valign="middle"><font size="2" color="#4B6A85">Календарь</font><br>
+                </td></tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td>
+            
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#666666">
+                    <tr>
+                        <td>
+                            <table width="100%" cellspacing="1" cellpadding="0">
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Мероприятие:
+                                    <td align="left">
+                                        '+text_str+'
+                                    </td>
+                                </tr>
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Дата начала:
+                                    </td>
+                                    <td align="left">
+                                        '+DateNewTime(teEvent.start_date)+' '+StrTime(Date(teEvent.start_date))+'
+                                    </td>
+                                </tr>
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Дата окончания:
+                                    </td>
+                                    <td align="left">
+                                        '+DateNewTime(_finish_date)+' '+StrTime(Date(_finish_date))+'
+                                    </td>
+                                </tr>
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Место проведения:
+                                    </td>
+                                    <td align="left">
+                                        '+_placename+'
+                                    </td>
+                                </tr>
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Адрес:
+                                    </td>
+                                    <td align="left">
+                                        '+_address+'
+                                    </td>
+                                </tr>
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Комментарий:
+                                    </td>
+                                    <td align="left">
+                                        '+teEvent.comment+'
+                                    </td>
+                                </tr>
+                                <tr bgcolor="#FFFFFF">
+                                    <td style="width: 150px">
+                                        Комментарий:
+                                    </td>
+                                    <td align="left">
+                                        '+teEvent.comment+'
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+    </body></html>
+            
