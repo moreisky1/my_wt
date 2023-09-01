@@ -3,7 +3,7 @@ var sLogMethod = "ext" // метод вывода в лог - ext, system, repor
 var sLogMethodExt = "ext_log" // префикс файла журнала (для sLogMethod = "ext")
 var slogMethodPath = "x-local://Logs/" //директория для сохранения файла на сервер (sLogMethod = "excel")
 var docReport
-var sLogStr = ''
+var sLogStr = ""
 
 function open_log() {
 	if (!bIsLog) {
