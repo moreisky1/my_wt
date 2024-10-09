@@ -141,7 +141,7 @@ function get_attached_object_ids( _documentID, _teDocument, _catalogType ) {
 			}
 			return return_arr
 		} else {
-			foundCatalog = ArrayOptFirstElem( teDocument.catalogs, "This.type == '" + _catalogType + "'" )
+			foundCatalog = ArrayOptFind( teDocument.catalogs, "This.type == '" + _catalogType + "'" )
 			if ( foundCatalog == undefined ) {
 				return []
 			} else {
